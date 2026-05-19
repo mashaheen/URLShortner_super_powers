@@ -3,6 +3,27 @@ import fp from "fastify-plugin";
 import type { FastifyPluginAsync } from "fastify";
 
 export type DatabaseClient = {
+  link: {
+    findUnique: (args: { where: { shortCode: string } }) => Promise<{
+      id: string;
+      originalUrl: string;
+      shortCode: string;
+      isActive: boolean;
+      expiresAt: Date | null;
+    } | null>;
+    update: (args: { where: { id: string }; data: { totalClickCount: { increment: number } } }) => Promise<unknown>;
+  };
+  clickEvent: {
+    create: (args: {
+      data: {
+        linkId: string;
+        referrerHost: string | null;
+        deviceType: string;
+        browser: string | null;
+        ipHash: string | null;
+      };
+    }) => Promise<unknown>;
+  };
   $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
   $disconnect: () => Promise<void>;
 };
