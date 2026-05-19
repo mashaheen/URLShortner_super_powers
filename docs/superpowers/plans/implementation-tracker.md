@@ -6,7 +6,7 @@ Design spec: `docs/superpowers/specs/2026-05-18-url-shortener-design.md`
 
 - [x] M1A: Project scaffold, Fastify health endpoint, Docker Compose PostgreSQL
 - [x] M1B: Prisma schema and database connection
-- [ ] M1C: Public link creation validation and code generation
+- [x] M1C: Public link creation validation and code generation
 - [ ] M1D: Redirect route and click counting basics
 - [ ] M2A: Admin authentication and sessions
 - [ ] M2B: Admin link management API
@@ -18,5 +18,5 @@ Design spec: `docs/superpowers/specs/2026-05-18-url-shortener-design.md`
 
 ## Current Status
 
-- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m1b-prisma.md`
+- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m1c-public-link-creation.md`
 - Last updated: 2026-05-19

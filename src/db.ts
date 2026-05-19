@@ -2,7 +2,18 @@ import { PrismaClient } from "./generated/prisma/client.js";
 import fp from "fastify-plugin";
 import type { FastifyPluginAsync } from "fastify";
 
+export type LinkCreateResult = {
+  id: string;
+  originalUrl: string;
+  shortCode: string;
+  isCustomAlias: boolean;
+  expiresAt: Date | null;
+};
+
 export type DatabaseClient = {
+  link: {
+    create: (args: { data: { originalUrl: string; shortCode: string; isCustomAlias: boolean; expiresAt: Date | null } }) => Promise<LinkCreateResult>;
+  };
   $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
   $disconnect: () => Promise<void>;
 };

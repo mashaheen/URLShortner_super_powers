@@ -3,6 +3,9 @@ import { buildServer } from "../src/server.js";
 
 function createPrismaStub(queryRaw: () => Promise<unknown>) {
   return {
+    link: {
+      create: async () => ({ id: "1", originalUrl: "https://example.com", shortCode: "abc123_", isCustomAlias: false, expiresAt: null }),
+    },
     $queryRaw: queryRaw,
     $disconnect: async () => {},
   };

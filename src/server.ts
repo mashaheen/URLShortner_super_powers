@@ -1,10 +1,12 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import { database, type DatabaseClient } from "./db.js";
+import { linkRoutes } from "./links/routes.js";
 
 type ServerOptions = {
   logger?: boolean;
   prisma?: DatabaseClient;
+  publicBaseUrl?: string;
 };
 
 export function buildServer(options: ServerOptions = {}) {
@@ -12,6 +14,7 @@ export function buildServer(options: ServerOptions = {}) {
 
   app.register(helmet);
   app.register(database, { prisma: options.prisma });
+  app.register(linkRoutes, { publicBaseUrl: options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? "http://localhost:3000" });
 
   app.get("/health", async (_request, reply) => {
     try {
