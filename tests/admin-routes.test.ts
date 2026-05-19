@@ -30,15 +30,17 @@ const linkTwo = {
 
 function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient & {
   sessionTokenHash: string | null;
-  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[] };
+  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[]; groupBy: unknown[]; clickCount: unknown[] };
 } {
   let sessionTokenHash: string | null = null;
-  const links = [linkOne, linkTwo];
+  const links = [{ ...linkOne }, { ...linkTwo }];
   const calls = {
     findMany: [] as unknown[],
     count: [] as unknown[],
     update: [] as unknown[],
     delete: [] as unknown[],
+    groupBy: [] as unknown[],
+    clickCount: [] as unknown[],
   };
   const filterLinks = (where: Parameters<NonNullable<DatabaseClient["link"]["findMany"]>>[0]["where"]) => {
     let result = links;
@@ -99,6 +101,32 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
     },
     clickEvent: {
       create: async () => ({}),
+      count: async (args) => {
+        calls.clickCount.push(args);
+        return 3;
+      },
+      groupBy: async (args) => {
+        calls.groupBy.push(args);
+
+        if (args.by[0] === "clickedAt") {
+          return [
+            { clickedAt: new Date("2026-05-18T12:00:00.000Z"), _count: { _all: 2 } },
+            { clickedAt: new Date("2026-05-19T12:00:00.000Z"), _count: { _all: 1 } },
+          ];
+        }
+
+        if (args.by[0] === "referrerHost") {
+          return [
+            { referrerHost: "example.com", _count: { _all: 2 } },
+            { referrerHost: null, _count: { _all: 1 } },
+          ];
+        }
+
+        return [
+          { deviceType: "desktop", _count: { _all: 2 } },
+          { deviceType: "mobile", _count: { _all: 1 } },
+        ];
+      },
     },
     adminUser: {
       findUnique: async ({ where }) => {
@@ -572,6 +600,128 @@ describe("admin link management routes", () => {
 
       expect(response.statusCode).toBe(204);
       expect(prisma.calls.delete).toEqual([{ where: { id: "link_1" } }]);
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe("admin analytics routes", () => {
+  async function authenticatedApp() {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    return { app, prisma, token };
+  }
+
+  it("requires an authenticated admin session for overview analytics", async () => {
+    const app = buildServer({ ...serverDefaults, prisma: createDbStub() });
+
+    try {
+      const response = await app.inject({ method: "GET", url: "/api/admin/analytics/overview" });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toEqual({ code: "UNAUTHENTICATED", message: "Admin session is required." });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns overview analytics for an authenticated admin", async () => {
+    const { app, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/overview",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ overview: { totalLinks: 2, totalClicks: 15, activeLinks: 1, recentClicks: 3 } });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns clicks grouped by day for an authenticated admin", async () => {
+    const { app, prisma, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/clicks-by-day?from=2026-05-18T00:00:00.000Z&to=2026-05-20T00:00:00.000Z",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ days: [{ date: "2026-05-18", clicks: 2 }, { date: "2026-05-19", clicks: 1 }] });
+      expect(prisma.calls.groupBy).toEqual([
+        {
+          by: ["clickedAt"],
+          where: { clickedAt: { gte: new Date("2026-05-18T00:00:00.000Z"), lte: new Date("2026-05-20T00:00:00.000Z") } },
+          orderBy: { clickedAt: "asc" },
+        },
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns referrer analytics for an authenticated admin", async () => {
+    const { app, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/referrers?limit=2",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ referrers: [{ referrer: "example.com", clicks: 2 }, { referrer: "Direct", clicks: 1 }] });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns device analytics for an authenticated admin", async () => {
+    const { app, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/devices",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ devices: [{ deviceType: "desktop", clicks: 2 }, { deviceType: "mobile", clicks: 1 }] });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("rejects invalid clicks-by-day date ranges", async () => {
+    const { app, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/clicks-by-day?from=2026-05-20T00:00:00.000Z&to=2026-05-18T00:00:00.000Z",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ code: "VALIDATION_ERROR", message: "Invalid analytics request." });
     } finally {
       await app.close();
     }

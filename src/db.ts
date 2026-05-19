@@ -22,6 +22,25 @@ type LinkAdminWhere = {
   OR?: Array<{ shortCode: { contains: string; mode: "insensitive" } } | { originalUrl: { contains: string; mode: "insensitive" } }>;
 };
 
+type LinkCountWhere = LinkAdminWhere | Record<string, never>;
+
+type ClickEventWhere = {
+  clickedAt?: { gte?: Date; lte?: Date };
+};
+
+type ClickEventGroupByArgs =
+  | { by: ["clickedAt"]; where?: ClickEventWhere; orderBy?: { clickedAt: "asc" } }
+  | { by: ["referrerHost"]; orderBy?: { _count: { referrerHost: "desc" } }; take?: number }
+  | { by: ["deviceType"]; orderBy?: { _count: { deviceType: "desc" } } };
+
+type ClickEventGroupByResult =
+  | { clickedAt: Date; _count: { _all: number } }
+  | { referrerHost: string | null; _count: { _all: number } }
+  | { deviceType: string | null; _count: { _all: number } };
+
+type ClickEventCount = (args: { where?: ClickEventWhere }) => PromiseLike<number>;
+type ClickEventGroupBy = (args: ClickEventGroupByArgs) => PromiseLike<ClickEventGroupByResult[]>;
+
 export type DatabaseClient = {
   link: {
     create: (args: { data: { originalUrl: string; shortCode: string; isCustomAlias: boolean; expiresAt: Date | null } }) => Promise<LinkCreateResult>;
@@ -33,7 +52,7 @@ export type DatabaseClient = {
       expiresAt: Date | null;
     } | null>;
     findMany?: (args: { where: LinkAdminWhere; orderBy: { createdAt: "desc" }; skip: number; take: number }) => Promise<LinkAdminResult[]>;
-    count?: (args: { where: LinkAdminWhere }) => Promise<number>;
+    count?: (args: { where: LinkCountWhere }) => Promise<number>;
     update: (args: {
       where: { id: string };
       data:
@@ -53,6 +72,8 @@ export type DatabaseClient = {
         ipHash: string | null;
       };
     }) => Promise<unknown>;
+    count?: ClickEventCount;
+    groupBy?: ClickEventGroupBy;
   };
   adminUser: {
     findUnique: (args: { where: { email: string } }) => Promise<{
@@ -89,7 +110,7 @@ export function createPrismaClient(): PrismaClient {
 }
 
 const databasePlugin: FastifyPluginAsync<DatabasePluginOptions> = async (app, options) => {
-  const prisma = options.prisma ?? createPrismaClient();
+  const prisma = (options.prisma ?? createPrismaClient()) as DatabaseClient;
 
   app.decorate("prisma", prisma);
   app.addHook("onClose", async () => {
