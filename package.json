@@ -5,19 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "postinstall": "prisma generate",
     "prebuild": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
-    "test": "vitest run --exclude dist/**"
+    "test": "vitest run --exclude dist/**",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@fastify/cors": "11.1.0",
     "@fastify/helmet": "13.0.2",
-    "fastify": "5.8.5"
+    "@prisma/client": "^7.8.0",
+    "fastify": "5.8.5",
+    "fastify-plugin": "^5.1.0"
   },
   "devDependencies": {
     "@types/node": "24.10.1",
+    "prisma": "^7.8.0",
     "tsx": "4.20.6",
     "typescript": "5.9.3",
     "vitest": "4.0.14"

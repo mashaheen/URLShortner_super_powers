@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Link {
+  id              String       @id @default(uuid()) @db.Uuid
+  originalUrl     String       @map("original_url") @db.Text
+  shortCode       String       @unique @map("short_code") @db.VarChar(64)
+  isCustomAlias   Boolean      @default(false) @map("is_custom_alias")
+  isActive        Boolean      @default(true) @map("is_active")
+  expiresAt       DateTime?    @map("expires_at") @db.Timestamptz(6)
+  totalClickCount Int          @default(0) @map("total_click_count")
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  clickEvents     ClickEvent[]
+
+  @@index([createdAt])
+  @@index([isActive, expiresAt])
+  @@map("links")
+}
+
+model ClickEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  linkId       String   @map("link_id") @db.Uuid
+  clickedAt    DateTime @default(now()) @map("clicked_at") @db.Timestamptz(6)
+  referrerHost String?  @map("referrer_host") @db.VarChar(255)
+  deviceType   String   @default("unknown") @map("device_type") @db.VarChar(32)
+  browser      String?  @db.VarChar(128)
+  ipHash       String?  @map("ip_hash") @db.VarChar(128)
+  link         Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+
+  @@index([linkId, clickedAt])
+  @@index([clickedAt])
+  @@map("click_events")
+}
+
+model AdminUser {
+  id           String         @id @default(uuid()) @db.Uuid
+  email        String         @unique @db.VarChar(255)
+  passwordHash String         @map("password_hash") @db.Text
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastLoginAt  DateTime?      @map("last_login_at") @db.Timestamptz(6)
+  sessions     AdminSession[]
+
+  @@map("admin_users")
+}
+
+model AdminSession {
+  id               String    @id @default(uuid()) @db.Uuid
+  adminUserId      String    @map("admin_user_id") @db.Uuid
+  sessionTokenHash String    @unique @map("session_token_hash") @db.VarChar(128)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  adminUser        AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
