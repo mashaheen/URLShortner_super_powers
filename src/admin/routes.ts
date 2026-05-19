@@ -271,6 +271,14 @@ function requireLinkDelete(db: FastifyRequest["server"]["prisma"]) {
   return db.link.delete;
 }
 
+function requireLinkAggregate(db: FastifyRequest["server"]["prisma"]) {
+  if (!db.link.aggregate) {
+    throw new Error("Admin analytics overview requires link.aggregate.");
+  }
+
+  return db.link.aggregate;
+}
+
 function requireClickEventCount(db: FastifyRequest["server"]["prisma"]) {
   if (!db.clickEvent.count) {
     throw new Error("Admin analytics overview requires clickEvent.count.");
@@ -286,10 +294,15 @@ function requireClickEventGroupBy(db: FastifyRequest["server"]["prisma"]) {
 
   return db.clickEvent.groupBy as (args: {
     by: ["clickedAt"] | ["referrerHost"] | ["deviceType"];
+    _count: { _all: true };
     where?: { clickedAt?: { gte?: Date; lte?: Date } };
     orderBy?: unknown;
     take?: number;
   }) => Promise<Array<{ clickedAt?: Date; referrerHost?: string | null; deviceType?: string | null; _count: { _all: number } }>>;
+}
+
+function sortAnalyticsRows<T extends { clicks: number }>(rows: T[], getLabel: (row: T) => string): T[] {
+  return rows.sort((left, right) => right.clicks - left.clicks || getLabel(left).localeCompare(getLabel(right)));
 }
 
 export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async (app, options) => {
@@ -362,16 +375,21 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       return reply;
     }
 
-    const findMany = requireLinkFindMany(app.prisma);
+    const linkCount = requireLinkCount(app.prisma);
+    const aggregate = requireLinkAggregate(app.prisma);
     const count = requireClickEventCount(app.prisma);
-    const links = await findMany({ where: {}, orderBy: { createdAt: "desc" }, skip: 0, take: Number.MAX_SAFE_INTEGER });
-    const recentClicks = await count({ where: { clickedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+    const [totalLinks, activeLinks, totalClickAggregate, recentClicks] = await Promise.all([
+      linkCount({ where: {} }),
+      linkCount({ where: { isActive: true } }),
+      aggregate({ _sum: { totalClickCount: true } }),
+      count({ where: { clickedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
+    ]);
 
     return {
       overview: {
-        totalLinks: links.length,
-        totalClicks: links.reduce((total, link) => total + link.totalClickCount, 0),
-        activeLinks: links.filter((link) => link.isActive).length,
+        totalLinks,
+        totalClicks: totalClickAggregate._sum.totalClickCount ?? 0,
+        activeLinks,
         recentClicks,
       },
     };
@@ -387,7 +405,12 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       return reply.code(400).send({ code: "VALIDATION_ERROR", message: "Invalid analytics request." });
     }
 
-    const rows = await requireClickEventGroupBy(app.prisma)({ by: ["clickedAt"], where: parsed.where, orderBy: { clickedAt: "asc" } });
+    const rows = await requireClickEventGroupBy(app.prisma)({
+      by: ["clickedAt"],
+      _count: { _all: true },
+      where: parsed.where,
+      orderBy: { clickedAt: "asc" },
+    });
     const clicksByDate = new Map<string, number>();
 
     for (const row of rows) {
@@ -413,15 +436,18 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
 
     const rows = await requireClickEventGroupBy(app.prisma)({
       by: ["referrerHost"],
+      _count: { _all: true },
       orderBy: { _count: { referrerHost: "desc" } },
       take: parseAnalyticsLimit(request.query.limit),
     });
 
+    const referrers = rows.map((row) => {
+      const referrerHost = "referrerHost" in row ? row.referrerHost : null;
+      return { referrer: referrerHost?.trim() || "Direct", clicks: row._count._all };
+    });
+
     return {
-      referrers: rows.map((row) => {
-        const referrerHost = "referrerHost" in row ? row.referrerHost : null;
-        return { referrer: referrerHost?.trim() || "Direct", clicks: row._count._all };
-      }),
+      referrers: sortAnalyticsRows(referrers, (row) => row.referrer),
     };
   });
 
@@ -430,13 +456,19 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       return reply;
     }
 
-    const rows = await requireClickEventGroupBy(app.prisma)({ by: ["deviceType"], orderBy: { _count: { deviceType: "desc" } } });
+    const rows = await requireClickEventGroupBy(app.prisma)({
+      by: ["deviceType"],
+      _count: { _all: true },
+      orderBy: { _count: { deviceType: "desc" } },
+    });
+
+    const devices = rows.map((row) => {
+      const deviceType = "deviceType" in row ? row.deviceType : null;
+      return { deviceType: deviceType?.trim() || "unknown", clicks: row._count._all };
+    });
 
     return {
-      devices: rows.map((row) => {
-        const deviceType = "deviceType" in row ? row.deviceType : null;
-        return { deviceType: deviceType?.trim() || "unknown", clicks: row._count._all };
-      }),
+      devices: sortAnalyticsRows(devices, (row) => row.deviceType),
     };
   });
 

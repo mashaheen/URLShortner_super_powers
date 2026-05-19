@@ -30,7 +30,7 @@ const linkTwo = {
 
 function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient & {
   sessionTokenHash: string | null;
-  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[]; groupBy: unknown[]; clickCount: unknown[] };
+  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[]; aggregate: unknown[]; groupBy: unknown[]; clickCount: unknown[] };
 } {
   let sessionTokenHash: string | null = null;
   const links = [{ ...linkOne }, { ...linkTwo }];
@@ -39,6 +39,7 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
     count: [] as unknown[],
     update: [] as unknown[],
     delete: [] as unknown[],
+    aggregate: [] as unknown[],
     groupBy: [] as unknown[],
     clickCount: [] as unknown[],
   };
@@ -76,6 +77,10 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
       count: async (args) => {
         calls.count.push(args);
         return filterLinks(args.where).length;
+      },
+      aggregate: async (args) => {
+        calls.aggregate.push(args);
+        return { _sum: { totalClickCount: links.reduce((total, link) => total + link.totalClickCount, 0) } };
       },
       update: async (args) => {
         calls.update.push(args);
@@ -117,14 +122,16 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
 
         if (args.by[0] === "referrerHost") {
           return [
-            { referrerHost: "example.com", _count: { _all: 2 } },
+            { referrerHost: "zeta.example", _count: { _all: 2 } },
+            { referrerHost: "alpha.example", _count: { _all: 2 } },
             { referrerHost: null, _count: { _all: 1 } },
           ];
         }
 
         return [
-          { deviceType: "desktop", _count: { _all: 2 } },
           { deviceType: "mobile", _count: { _all: 1 } },
+          { deviceType: "desktop", _count: { _all: 2 } },
+          { deviceType: "bot", _count: { _all: 2 } },
         ];
       },
     },
@@ -636,7 +643,7 @@ describe("admin analytics routes", () => {
   });
 
   it("returns overview analytics for an authenticated admin", async () => {
-    const { app, token } = await authenticatedApp();
+    const { app, prisma, token } = await authenticatedApp();
 
     try {
       const response = await app.inject({
@@ -647,6 +654,8 @@ describe("admin analytics routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({ overview: { totalLinks: 2, totalClicks: 15, activeLinks: 1, recentClicks: 3 } });
+      expect(prisma.calls.aggregate).toEqual([{ _sum: { totalClickCount: true } }]);
+      expect(prisma.calls.findMany).toEqual([]);
     } finally {
       await app.close();
     }
@@ -667,6 +676,7 @@ describe("admin analytics routes", () => {
       expect(prisma.calls.groupBy).toEqual([
         {
           by: ["clickedAt"],
+          _count: { _all: true },
           where: { clickedAt: { gte: new Date("2026-05-18T00:00:00.000Z"), lte: new Date("2026-05-20T00:00:00.000Z") } },
           orderBy: { clickedAt: "asc" },
         },
@@ -677,7 +687,7 @@ describe("admin analytics routes", () => {
   });
 
   it("returns referrer analytics for an authenticated admin", async () => {
-    const { app, token } = await authenticatedApp();
+    const { app, prisma, token } = await authenticatedApp();
 
     try {
       const response = await app.inject({
@@ -687,14 +697,19 @@ describe("admin analytics routes", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ referrers: [{ referrer: "example.com", clicks: 2 }, { referrer: "Direct", clicks: 1 }] });
+      expect(response.json()).toEqual({
+        referrers: [{ referrer: "alpha.example", clicks: 2 }, { referrer: "zeta.example", clicks: 2 }, { referrer: "Direct", clicks: 1 }],
+      });
+      expect(prisma.calls.groupBy).toEqual([
+        { by: ["referrerHost"], _count: { _all: true }, orderBy: { _count: { referrerHost: "desc" } }, take: 2 },
+      ]);
     } finally {
       await app.close();
     }
   });
 
   it("returns device analytics for an authenticated admin", async () => {
-    const { app, token } = await authenticatedApp();
+    const { app, prisma, token } = await authenticatedApp();
 
     try {
       const response = await app.inject({
@@ -704,7 +719,10 @@ describe("admin analytics routes", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(response.json()).toEqual({ devices: [{ deviceType: "desktop", clicks: 2 }, { deviceType: "mobile", clicks: 1 }] });
+      expect(response.json()).toEqual({ devices: [{ deviceType: "bot", clicks: 2 }, { deviceType: "desktop", clicks: 2 }, { deviceType: "mobile", clicks: 1 }] });
+      expect(prisma.calls.groupBy).toEqual([
+        { by: ["deviceType"], _count: { _all: true }, orderBy: { _count: { deviceType: "desc" } } },
+      ]);
     } finally {
       await app.close();
     }

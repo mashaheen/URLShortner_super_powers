@@ -24,14 +24,16 @@ type LinkAdminWhere = {
 
 type LinkCountWhere = LinkAdminWhere | Record<string, never>;
 
+type LinkAggregate = (args: { _sum: { totalClickCount: true } }) => PromiseLike<{ _sum: { totalClickCount: number | null } }>;
+
 type ClickEventWhere = {
   clickedAt?: { gte?: Date; lte?: Date };
 };
 
 type ClickEventGroupByArgs =
-  | { by: ["clickedAt"]; where?: ClickEventWhere; orderBy?: { clickedAt: "asc" } }
-  | { by: ["referrerHost"]; orderBy?: { _count: { referrerHost: "desc" } }; take?: number }
-  | { by: ["deviceType"]; orderBy?: { _count: { deviceType: "desc" } } };
+  | { by: ["clickedAt"]; _count: { _all: true }; where?: ClickEventWhere; orderBy?: { clickedAt: "asc" } }
+  | { by: ["referrerHost"]; _count: { _all: true }; orderBy?: { _count: { referrerHost: "desc" } }; take?: number }
+  | { by: ["deviceType"]; _count: { _all: true }; orderBy?: { _count: { deviceType: "desc" } } };
 
 type ClickEventGroupByResult =
   | { clickedAt: Date; _count: { _all: number } }
@@ -53,6 +55,7 @@ export type DatabaseClient = {
     } | null>;
     findMany?: (args: { where: LinkAdminWhere; orderBy: { createdAt: "desc" }; skip: number; take: number }) => Promise<LinkAdminResult[]>;
     count?: (args: { where: LinkCountWhere }) => Promise<number>;
+    aggregate?: LinkAggregate;
     update: (args: {
       where: { id: string };
       data:
