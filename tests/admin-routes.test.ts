@@ -742,4 +742,25 @@ describe("admin analytics routes", () => {
       await app.close();
     }
   });
+
+  it("uses a bounded default clicks-by-day range", async () => {
+    const { app, prisma, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/clicks-by-day",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const values = (prisma.calls.queryRaw[0] as { values: unknown[] }).values;
+      expect(values).toHaveLength(2);
+      expect(values[0]).toBeInstanceOf(Date);
+      expect(values[1]).toBeInstanceOf(Date);
+      expect((values[1] as Date).getTime() - (values[0] as Date).getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    } finally {
+      await app.close();
+    }
+  });
 });

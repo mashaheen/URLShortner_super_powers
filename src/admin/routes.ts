@@ -65,6 +65,7 @@ type AdminLinkWhere = {
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_ANALYTICS_LIMIT = 25;
+const DEFAULT_ANALYTICS_RANGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const cookies: Record<string, string> = {};
@@ -139,7 +140,7 @@ function parseAnalyticsLimit(value: string | undefined): number {
   return Math.min(parsePositiveInt(value, MAX_ANALYTICS_LIMIT), MAX_ANALYTICS_LIMIT);
 }
 
-function parseAnalyticsDateRange(query: ClicksByDayQuery): { ok: true; where: { clickedAt?: { gte?: Date; lte?: Date } } } | { ok: false } {
+function parseAnalyticsDateRange(query: ClicksByDayQuery): { ok: true; where: { clickedAt: { gte: Date; lte: Date } } } | { ok: false } {
   const clickedAt: { gte?: Date; lte?: Date } = {};
 
   if (query.from) {
@@ -164,7 +165,10 @@ function parseAnalyticsDateRange(query: ClicksByDayQuery): { ok: true; where: { 
     return { ok: false };
   }
 
-  return Object.keys(clickedAt).length > 0 ? { ok: true, where: { clickedAt } } : { ok: true, where: {} };
+  const lte = clickedAt.lte ?? new Date();
+  const gte = clickedAt.gte ?? new Date(lte.getTime() - DEFAULT_ANALYTICS_RANGE_MS);
+
+  return { ok: true, where: { clickedAt: { gte, lte } } };
 }
 
 function buildLinkWhere(query: ListLinksQuery): AdminLinkWhere {
