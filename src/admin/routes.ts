@@ -165,8 +165,8 @@ function parseAnalyticsDateRange(query: ClicksByDayQuery): { ok: true; where: { 
     return { ok: false };
   }
 
-  const lte = clickedAt.lte ?? new Date();
-  const gte = clickedAt.gte ?? new Date(lte.getTime() - DEFAULT_ANALYTICS_RANGE_MS);
+  const gte = clickedAt.gte ?? new Date((clickedAt.lte ?? new Date()).getTime() - DEFAULT_ANALYTICS_RANGE_MS);
+  const lte = clickedAt.lte ?? new Date(gte.getTime() + DEFAULT_ANALYTICS_RANGE_MS);
 
   return { ok: true, where: { clickedAt: { gte, lte } } };
 }
@@ -425,7 +425,7 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     const from = parsed.where.clickedAt?.gte ?? new Date(0);
     const to = parsed.where.clickedAt?.lte ?? new Date(8640000000000000);
     const rows = await app.prisma.$queryRaw`
-      SELECT date_trunc('day', clicked_at)::date AS date, COUNT(*)::int AS clicks
+      SELECT date_trunc('day', clicked_at AT TIME ZONE 'UTC')::date AS date, COUNT(*)::int AS clicks
       FROM click_events
       WHERE clicked_at >= ${from} AND clicked_at <= ${to}
       GROUP BY date

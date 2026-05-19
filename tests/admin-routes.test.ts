@@ -679,6 +679,7 @@ describe("admin analytics routes", () => {
       expect(prisma.calls.groupBy).toEqual([]);
       expect(prisma.calls.queryRaw).toHaveLength(1);
       expect(prisma.calls.queryRaw[0]).toMatchObject({ values: [new Date("2026-05-18T00:00:00.000Z"), new Date("2026-05-20T00:00:00.000Z")] });
+      expect((prisma.calls.queryRaw[0] as { query: string[] }).query.join(" ")).toContain("AT TIME ZONE 'UTC'");
     } finally {
       await app.close();
     }
@@ -759,6 +760,25 @@ describe("admin analytics routes", () => {
       expect(values[0]).toBeInstanceOf(Date);
       expect(values[1]).toBeInstanceOf(Date);
       expect((values[1] as Date).getTime() - (values[0] as Date).getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("uses a bounded from-only clicks-by-day range", async () => {
+    const { app, prisma, token } = await authenticatedApp();
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/analytics/clicks-by-day?from=2020-01-01T00:00:00.000Z",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(prisma.calls.queryRaw[0]).toMatchObject({
+        values: [new Date("2020-01-01T00:00:00.000Z"), new Date("2020-01-31T00:00:00.000Z")],
+      });
     } finally {
       await app.close();
     }
