@@ -12,6 +12,15 @@ function createDbStub(create: (args: { data: { originalUrl: string; shortCode: s
     clickEvent: {
       create: async () => ({}),
     },
+    adminUser: {
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    adminSession: {
+      create: async () => ({ id: "session_1", expiresAt: new Date() }),
+      findUnique: async () => null,
+      deleteMany: async () => ({ count: 0 }),
+    },
     $queryRaw: async () => [],
     $disconnect: async () => {},
   };

@@ -33,6 +33,28 @@ export type DatabaseClient = {
       };
     }) => Promise<unknown>;
   };
+  adminUser: {
+    findUnique: (args: { where: { email: string } }) => Promise<{
+      id: string;
+      email: string;
+      passwordHash: string;
+    } | null>;
+    update: (args: { where: { id: string }; data: { lastLoginAt: Date } }) => Promise<unknown>;
+  };
+  adminSession: {
+    create: (args: { data: { adminUserId: string; sessionTokenHash: string; expiresAt: Date } }) => Promise<{
+      id: string;
+      expiresAt: Date;
+    }>;
+    findUnique: (args: {
+      where: { sessionTokenHash: string };
+      include: { adminUser: { select: { id: true; email: true } } };
+    }) => Promise<{
+      expiresAt: Date;
+      adminUser: { id: string; email: string };
+    } | null>;
+    deleteMany: (args: { where: { sessionTokenHash?: string; expiresAt?: { lt: Date } } }) => Promise<{ count: number }>;
+  };
   $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
   $disconnect: () => Promise<void>;
 };

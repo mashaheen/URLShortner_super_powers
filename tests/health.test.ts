@@ -11,6 +11,15 @@ function createPrismaStub(queryRaw: () => Promise<unknown>) {
     clickEvent: {
       create: async () => ({}),
     },
+    adminUser: {
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    adminSession: {
+      create: async () => ({ id: "session_1", expiresAt: new Date() }),
+      findUnique: async () => null,
+      deleteMany: async () => ({ count: 0 }),
+    },
     $queryRaw: queryRaw,
     $disconnect: async () => {},
   };
@@ -22,6 +31,7 @@ describe("health endpoint", () => {
       logger: false,
       prisma: createPrismaStub(async () => [{ "?column?": 1 }]),
       ipHashSecret: "test-secret",
+      sessionSecret: "test-session-secret",
     });
 
     try {
@@ -41,6 +51,7 @@ describe("health endpoint", () => {
         throw new Error("database unavailable");
       }),
       ipHashSecret: "test-secret",
+      sessionSecret: "test-session-secret",
     });
 
     try {

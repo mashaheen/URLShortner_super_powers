@@ -8,7 +8,7 @@ Design spec: `docs/superpowers/specs/2026-05-18-url-shortener-design.md`
 - [x] M1B: Prisma schema and database connection
 - [x] M1C: Public link creation validation and code generation
 - [x] M1D: Redirect route and click counting basics
-- [ ] M2A: Admin authentication and sessions
+- [x] M2A: Admin authentication and sessions
 - [ ] M2B: Admin link management API
 - [ ] M2C: Admin analytics API
 - [ ] M3A: Public React form
@@ -18,5 +18,5 @@ Design spec: `docs/superpowers/specs/2026-05-18-url-shortener-design.md`
 
 ## Current Status
 
-- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m1d-redirect-clicks.md`
+- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m2a-admin-auth-sessions.md`
 - Last updated: 2026-05-19

@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
+import { adminAuthRoutes } from "./admin/routes.js";
+import { readCookieSecure } from "./config.js";
 import { database, type DatabaseClient } from "./db.js";
 import { linkRoutes } from "./links/routes.js";
 import { redirectRoutes } from "./redirect-routes.js";
@@ -9,6 +11,8 @@ type ServerOptions = {
   prisma?: DatabaseClient;
   publicBaseUrl?: string;
   ipHashSecret: string;
+  sessionSecret: string;
+  cookieSecure?: boolean;
 };
 
 export function buildServer(options: ServerOptions) {
@@ -17,6 +21,10 @@ export function buildServer(options: ServerOptions) {
   app.register(helmet);
   app.register(database, { prisma: options.prisma });
   app.register(linkRoutes, { publicBaseUrl: options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? "http://localhost:3000" });
+  app.register(adminAuthRoutes, {
+    sessionSecret: options.sessionSecret,
+    cookieSecure: options.cookieSecure ?? readCookieSecure(process.env),
+  });
 
   app.get("/health", async (_request, reply) => {
     try {

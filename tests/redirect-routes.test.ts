@@ -33,6 +33,15 @@ function createPrismaStub(link: LinkRecord | null) {
         return data;
       },
     },
+    adminUser: {
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    adminSession: {
+      create: async () => ({ id: "session_1", expiresAt: new Date() }),
+      findUnique: async () => null,
+      deleteMany: async () => ({ count: 0 }),
+    },
     $queryRaw: async () => [{ "?column?": 1 }],
     $disconnect: async () => {},
   };
@@ -47,7 +56,7 @@ describe("redirect route", () => {
       isActive: true,
       expiresAt: null,
     });
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({
@@ -84,7 +93,7 @@ describe("redirect route", () => {
 
   it("shows unavailable HTML for missing links", async () => {
     const prisma = createPrismaStub(null);
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({ method: "GET", url: "/missing" });
@@ -105,7 +114,7 @@ describe("redirect route", () => {
       isActive: false,
       expiresAt: null,
     });
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({ method: "GET", url: "/inactive" });
@@ -126,7 +135,7 @@ describe("redirect route", () => {
       isActive: true,
       expiresAt: new Date("2020-01-01T00:00:00.000Z"),
     });
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({ method: "GET", url: "/expired" });
@@ -147,7 +156,7 @@ describe("redirect route", () => {
       isActive: true,
       expiresAt: null,
     });
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({
@@ -176,7 +185,7 @@ describe("redirect route", () => {
     prisma.clickEvent.create = async () => {
       throw new Error("analytics unavailable");
     };
-    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret" });
+    const app = buildServer({ logger: false, prisma, ipHashSecret: "test-secret", sessionSecret: "test-session-secret" });
 
     try {
       const response = await app.inject({

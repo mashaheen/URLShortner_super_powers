@@ -12,6 +12,15 @@ function createDbStub(create: DatabaseClient["link"]["create"]): DatabaseClient 
     clickEvent: {
       create: async () => ({}),
     },
+    adminUser: {
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    adminSession: {
+      create: async () => ({ id: "session_1", expiresAt: new Date() }),
+      findUnique: async () => null,
+      deleteMany: async () => ({ count: 0 }),
+    },
     $queryRaw: async () => [],
     $disconnect: async () => {},
   };
@@ -21,6 +30,7 @@ const serverDefaults = {
   logger: false,
   publicBaseUrl: "https://sho.rt",
   ipHashSecret: "test-secret",
+  sessionSecret: "test-session-secret",
 };
 
 function uniqueConstraintError(): Error & { code: string } {
