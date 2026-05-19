@@ -37,6 +37,11 @@ type AnalyticsLimitQuery = {
   limit?: string;
 };
 
+type ClicksByDayRow = {
+  date: Date | string;
+  clicks: number | bigint;
+};
+
 type LinkParams = {
   id: string;
 };
@@ -293,16 +298,18 @@ function requireClickEventGroupBy(db: FastifyRequest["server"]["prisma"]) {
   }
 
   return db.clickEvent.groupBy as (args: {
-    by: ["clickedAt"] | ["referrerHost"] | ["deviceType"];
+    by: ["referrerHost"] | ["deviceType"];
     _count: { _all: true };
-    where?: { clickedAt?: { gte?: Date; lte?: Date } };
     orderBy?: unknown;
-    take?: number;
-  }) => Promise<Array<{ clickedAt?: Date; referrerHost?: string | null; deviceType?: string | null; _count: { _all: number } }>>;
+  }) => Promise<Array<{ referrerHost?: string | null; deviceType?: string | null; _count: { _all: number } }>>;
 }
 
 function sortAnalyticsRows<T extends { clicks: number }>(rows: T[], getLabel: (row: T) => string): T[] {
   return rows.sort((left, right) => right.clicks - left.clicks || getLabel(left).localeCompare(getLabel(right)));
+}
+
+function serializeAnalyticsDate(value: Date | string): string {
+  return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
 }
 
 export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async (app, options) => {
@@ -405,26 +412,17 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       return reply.code(400).send({ code: "VALIDATION_ERROR", message: "Invalid analytics request." });
     }
 
-    const rows = await requireClickEventGroupBy(app.prisma)({
-      by: ["clickedAt"],
-      _count: { _all: true },
-      where: parsed.where,
-      orderBy: { clickedAt: "asc" },
-    });
-    const clicksByDate = new Map<string, number>();
+    const from = parsed.where.clickedAt?.gte ?? new Date(0);
+    const to = parsed.where.clickedAt?.lte ?? new Date(8640000000000000);
+    const rows = await app.prisma.$queryRaw`
+      SELECT date_trunc('day', clicked_at)::date AS date, COUNT(*)::int AS clicks
+      FROM click_events
+      WHERE clicked_at >= ${from} AND clicked_at <= ${to}
+      GROUP BY date
+      ORDER BY date ASC
+    ` as ClicksByDayRow[];
 
-    for (const row of rows) {
-      if (!row.clickedAt) {
-        continue;
-      }
-
-      const date = row.clickedAt.toISOString().slice(0, 10);
-      clicksByDate.set(date, (clicksByDate.get(date) ?? 0) + row._count._all);
-    }
-
-    const days = [...clicksByDate.entries()]
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([date, clicks]) => ({ date, clicks }));
+    const days = rows.map((row) => ({ date: serializeAnalyticsDate(row.date), clicks: Number(row.clicks) }));
 
     return { days };
   });
@@ -438,7 +436,6 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       by: ["referrerHost"],
       _count: { _all: true },
       orderBy: { _count: { referrerHost: "desc" } },
-      take: parseAnalyticsLimit(request.query.limit),
     });
 
     const referrers = rows.map((row) => {
@@ -447,7 +444,7 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     });
 
     return {
-      referrers: sortAnalyticsRows(referrers, (row) => row.referrer),
+      referrers: sortAnalyticsRows(referrers, (row) => row.referrer).slice(0, parseAnalyticsLimit(request.query.limit)),
     };
   });
 

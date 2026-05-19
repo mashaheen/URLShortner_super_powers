@@ -30,7 +30,7 @@ const linkTwo = {
 
 function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient & {
   sessionTokenHash: string | null;
-  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[]; aggregate: unknown[]; groupBy: unknown[]; clickCount: unknown[] };
+    calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[]; aggregate: unknown[]; groupBy: unknown[]; clickCount: unknown[]; queryRaw: unknown[] };
 } {
   let sessionTokenHash: string | null = null;
   const links = [{ ...linkOne }, { ...linkTwo }];
@@ -42,6 +42,7 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
     aggregate: [] as unknown[],
     groupBy: [] as unknown[],
     clickCount: [] as unknown[],
+    queryRaw: [] as unknown[],
   };
   const filterLinks = (where: Parameters<NonNullable<DatabaseClient["link"]["findMany"]>>[0]["where"]) => {
     let result = links;
@@ -113,13 +114,6 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
       groupBy: async (args) => {
         calls.groupBy.push(args);
 
-        if (args.by[0] === "clickedAt") {
-          return [
-            { clickedAt: new Date("2026-05-18T12:00:00.000Z"), _count: { _all: 2 } },
-            { clickedAt: new Date("2026-05-19T12:00:00.000Z"), _count: { _all: 1 } },
-          ];
-        }
-
         if (args.by[0] === "referrerHost") {
           return [
             { referrerHost: "zeta.example", _count: { _all: 2 } },
@@ -169,7 +163,10 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
         return { count: 0 };
       },
     },
-    $queryRaw: async () => [],
+    $queryRaw: async (query, ...values) => {
+      calls.queryRaw.push({ query: [...query], values });
+      return [{ date: new Date("2026-05-18T00:00:00.000Z"), clicks: 2n }, { date: "2026-05-19", clicks: 1 }];
+    },
     $disconnect: async () => {},
   };
 }
@@ -673,14 +670,9 @@ describe("admin analytics routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({ days: [{ date: "2026-05-18", clicks: 2 }, { date: "2026-05-19", clicks: 1 }] });
-      expect(prisma.calls.groupBy).toEqual([
-        {
-          by: ["clickedAt"],
-          _count: { _all: true },
-          where: { clickedAt: { gte: new Date("2026-05-18T00:00:00.000Z"), lte: new Date("2026-05-20T00:00:00.000Z") } },
-          orderBy: { clickedAt: "asc" },
-        },
-      ]);
+      expect(prisma.calls.groupBy).toEqual([]);
+      expect(prisma.calls.queryRaw).toHaveLength(1);
+      expect(prisma.calls.queryRaw[0]).toMatchObject({ values: [new Date("2026-05-18T00:00:00.000Z"), new Date("2026-05-20T00:00:00.000Z")] });
     } finally {
       await app.close();
     }
@@ -698,10 +690,10 @@ describe("admin analytics routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({
-        referrers: [{ referrer: "alpha.example", clicks: 2 }, { referrer: "zeta.example", clicks: 2 }, { referrer: "Direct", clicks: 1 }],
+        referrers: [{ referrer: "alpha.example", clicks: 2 }, { referrer: "zeta.example", clicks: 2 }],
       });
       expect(prisma.calls.groupBy).toEqual([
-        { by: ["referrerHost"], _count: { _all: true }, orderBy: { _count: { referrerHost: "desc" } }, take: 2 },
+        { by: ["referrerHost"], _count: { _all: true }, orderBy: { _count: { referrerHost: "desc" } } },
       ]);
     } finally {
       await app.close();

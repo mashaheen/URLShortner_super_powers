@@ -31,12 +31,10 @@ type ClickEventWhere = {
 };
 
 type ClickEventGroupByArgs =
-  | { by: ["clickedAt"]; _count: { _all: true }; where?: ClickEventWhere; orderBy?: { clickedAt: "asc" } }
-  | { by: ["referrerHost"]; _count: { _all: true }; orderBy?: { _count: { referrerHost: "desc" } }; take?: number }
+  | { by: ["referrerHost"]; _count: { _all: true }; orderBy?: { _count: { referrerHost: "desc" } } }
   | { by: ["deviceType"]; _count: { _all: true }; orderBy?: { _count: { deviceType: "desc" } } };
 
 type ClickEventGroupByResult =
-  | { clickedAt: Date; _count: { _all: number } }
   | { referrerHost: string | null; _count: { _all: number } }
   | { deviceType: string | null; _count: { _all: number } };
 
