@@ -1,6 +1,7 @@
+import { readIpHashSecret } from "./config.js";
 import { buildServer } from "./server.js";
 
-const app = buildServer();
+const app = buildServer({ ipHashSecret: readIpHashSecret(process.env) });
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? "0.0.0.0";
 

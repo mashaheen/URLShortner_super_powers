@@ -4,7 +4,14 @@ import type { DatabaseClient, LinkCreateResult } from "../src/db.js";
 
 function createDbStub(create: (args: { data: { originalUrl: string; shortCode: string; isCustomAlias: boolean; expiresAt: Date | null } }) => Promise<LinkCreateResult>): DatabaseClient {
   return {
-    link: { create },
+    link: {
+      create,
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    clickEvent: {
+      create: async () => ({}),
+    },
     $queryRaw: async () => [],
     $disconnect: async () => {},
   };

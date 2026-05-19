@@ -5,6 +5,11 @@ function createPrismaStub(queryRaw: () => Promise<unknown>) {
   return {
     link: {
       create: async () => ({ id: "1", originalUrl: "https://example.com", shortCode: "abc123_", isCustomAlias: false, expiresAt: null }),
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    clickEvent: {
+      create: async () => ({}),
     },
     $queryRaw: queryRaw,
     $disconnect: async () => {},
@@ -16,6 +21,7 @@ describe("health endpoint", () => {
     const app = buildServer({
       logger: false,
       prisma: createPrismaStub(async () => [{ "?column?": 1 }]),
+      ipHashSecret: "test-secret",
     });
 
     try {
@@ -34,6 +40,7 @@ describe("health endpoint", () => {
       prisma: createPrismaStub(async () => {
         throw new Error("database unavailable");
       }),
+      ipHashSecret: "test-secret",
     });
 
     try {

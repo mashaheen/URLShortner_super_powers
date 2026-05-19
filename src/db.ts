@@ -13,6 +13,25 @@ export type LinkCreateResult = {
 export type DatabaseClient = {
   link: {
     create: (args: { data: { originalUrl: string; shortCode: string; isCustomAlias: boolean; expiresAt: Date | null } }) => Promise<LinkCreateResult>;
+    findUnique: (args: { where: { shortCode: string } }) => Promise<{
+      id: string;
+      originalUrl: string;
+      shortCode: string;
+      isActive: boolean;
+      expiresAt: Date | null;
+    } | null>;
+    update: (args: { where: { id: string }; data: { totalClickCount: { increment: number } } }) => Promise<unknown>;
+  };
+  clickEvent: {
+    create: (args: {
+      data: {
+        linkId: string;
+        referrerHost: string | null;
+        deviceType: string;
+        browser: string | null;
+        ipHash: string | null;
+      };
+    }) => Promise<unknown>;
   };
   $queryRaw: (query: TemplateStringsArray, ...values: unknown[]) => Promise<unknown>;
   $disconnect: () => Promise<void>;

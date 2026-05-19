@@ -2,14 +2,16 @@ import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import { database, type DatabaseClient } from "./db.js";
 import { linkRoutes } from "./links/routes.js";
+import { redirectRoutes } from "./redirect-routes.js";
 
 type ServerOptions = {
   logger?: boolean;
   prisma?: DatabaseClient;
   publicBaseUrl?: string;
+  ipHashSecret: string;
 };
 
-export function buildServer(options: ServerOptions = {}) {
+export function buildServer(options: ServerOptions) {
   const app = Fastify({ logger: options.logger ?? true });
 
   app.register(helmet);
@@ -27,6 +29,8 @@ export function buildServer(options: ServerOptions = {}) {
       return reply.code(503).send({ status: "error", database: "unavailable" });
     }
   });
+
+  app.register(redirectRoutes, { ipHashSecret: options.ipHashSecret });
 
   return app;
 }

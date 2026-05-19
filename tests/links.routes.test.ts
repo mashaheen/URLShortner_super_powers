@@ -4,11 +4,24 @@ import type { DatabaseClient, LinkCreateResult } from "../src/db.js";
 
 function createDbStub(create: DatabaseClient["link"]["create"]): DatabaseClient {
   return {
-    link: { create },
+    link: {
+      create,
+      findUnique: async () => null,
+      update: async () => ({}),
+    },
+    clickEvent: {
+      create: async () => ({}),
+    },
     $queryRaw: async () => [],
     $disconnect: async () => {},
   };
 }
+
+const serverDefaults = {
+  logger: false,
+  publicBaseUrl: "https://sho.rt",
+  ipHashSecret: "test-secret",
+};
 
 function uniqueConstraintError(): Error & { code: string } {
   const error = new Error("Unique constraint failed") as Error & { code: string };
@@ -19,8 +32,7 @@ function uniqueConstraintError(): Error & { code: string } {
 describe("link routes", () => {
   it("creates a public short link", async () => {
     const app = buildServer({
-      logger: false,
-      publicBaseUrl: "https://sho.rt",
+      ...serverDefaults,
       prisma: createDbStub(async (): Promise<LinkCreateResult> => ({
         id: "link_1",
         originalUrl: "https://example.com",
@@ -53,8 +65,7 @@ describe("link routes", () => {
 
   it("returns a validation error for unsupported URL protocols", async () => {
     const app = buildServer({
-      logger: false,
-      publicBaseUrl: "https://sho.rt",
+      ...serverDefaults,
       prisma: createDbStub(async () => {
         throw new Error("link.create should not be called");
       }),
@@ -76,8 +87,7 @@ describe("link routes", () => {
 
   it("returns a validation error when the request has no body", async () => {
     const app = buildServer({
-      logger: false,
-      publicBaseUrl: "https://sho.rt",
+      ...serverDefaults,
       prisma: createDbStub(async () => {
         throw new Error("link.create should not be called");
       }),
@@ -98,8 +108,7 @@ describe("link routes", () => {
 
   it("returns a validation error when the request body is null", async () => {
     const app = buildServer({
-      logger: false,
-      publicBaseUrl: "https://sho.rt",
+      ...serverDefaults,
       prisma: createDbStub(async () => {
         throw new Error("link.create should not be called");
       }),
@@ -122,8 +131,7 @@ describe("link routes", () => {
 
   it("returns a conflict when a custom alias is unavailable", async () => {
     const app = buildServer({
-      logger: false,
-      publicBaseUrl: "https://sho.rt",
+      ...serverDefaults,
       prisma: createDbStub(async () => {
         throw uniqueConstraintError();
       }),
