@@ -10,6 +10,18 @@ export type LinkCreateResult = {
   expiresAt: Date | null;
 };
 
+export type LinkAdminResult = LinkCreateResult & {
+  isActive: boolean;
+  totalClickCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type LinkAdminWhere = {
+  isActive?: boolean;
+  OR?: Array<{ shortCode: { contains: string; mode: "insensitive" } } | { originalUrl: { contains: string; mode: "insensitive" } }>;
+};
+
 export type DatabaseClient = {
   link: {
     create: (args: { data: { originalUrl: string; shortCode: string; isCustomAlias: boolean; expiresAt: Date | null } }) => Promise<LinkCreateResult>;
@@ -20,7 +32,16 @@ export type DatabaseClient = {
       isActive: boolean;
       expiresAt: Date | null;
     } | null>;
-    update: (args: { where: { id: string }; data: { totalClickCount: { increment: number } } }) => Promise<unknown>;
+    findMany?: (args: { where: LinkAdminWhere; orderBy: { createdAt: "desc" }; skip: number; take: number }) => Promise<LinkAdminResult[]>;
+    count?: (args: { where: LinkAdminWhere }) => Promise<number>;
+    update: (args: {
+      where: { id: string };
+      data:
+        | { totalClickCount: { increment: number } }
+        | { originalUrl?: string; isActive?: boolean; expiresAt?: Date | null }
+        | { isActive: false };
+    }) => Promise<unknown>;
+    delete?: (args: { where: { id: string } }) => Promise<unknown>;
   };
   clickEvent: {
     create: (args: {

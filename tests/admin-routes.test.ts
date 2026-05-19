@@ -4,17 +4,98 @@ import { hashSessionToken } from "../src/admin/auth.js";
 import type { DatabaseClient } from "../src/db.js";
 import { buildServer } from "../src/server.js";
 
-function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient & { sessionTokenHash: string | null } {
+const linkOne = {
+  id: "link_1",
+  originalUrl: "https://example.com/docs",
+  shortCode: "docs",
+  isCustomAlias: true,
+  isActive: true,
+  expiresAt: null,
+  totalClickCount: 12,
+  createdAt: new Date("2026-05-18T10:00:00.000Z"),
+  updatedAt: new Date("2026-05-18T11:00:00.000Z"),
+};
+
+const linkTwo = {
+  id: "link_2",
+  originalUrl: "https://example.com/blog",
+  shortCode: "blog",
+  isCustomAlias: false,
+  isActive: false,
+  expiresAt: new Date("2026-06-01T00:00:00.000Z"),
+  totalClickCount: 3,
+  createdAt: new Date("2026-05-17T10:00:00.000Z"),
+  updatedAt: new Date("2026-05-17T11:00:00.000Z"),
+};
+
+function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient & {
+  sessionTokenHash: string | null;
+  calls: { findMany: unknown[]; count: unknown[]; update: unknown[]; delete: unknown[] };
+} {
   let sessionTokenHash: string | null = null;
+  const links = [linkOne, linkTwo];
+  const calls = {
+    findMany: [] as unknown[],
+    count: [] as unknown[],
+    update: [] as unknown[],
+    delete: [] as unknown[],
+  };
+  const filterLinks = (where: Parameters<NonNullable<DatabaseClient["link"]["findMany"]>>[0]["where"]) => {
+    let result = links;
+
+    if (where.isActive !== undefined) {
+      result = result.filter((link) => link.isActive === where.isActive);
+    }
+
+    const search = where.OR?.find((condition) => "shortCode" in condition)?.shortCode.contains;
+    if (search) {
+      const normalizedSearch = search.toLowerCase();
+      result = result.filter(
+        (link) => link.shortCode.toLowerCase().includes(normalizedSearch) || link.originalUrl.toLowerCase().includes(normalizedSearch),
+      );
+    }
+
+    return result;
+  };
 
   return {
     get sessionTokenHash() {
       return sessionTokenHash;
     },
+    calls,
     link: {
       create: async () => ({ id: "1", originalUrl: "https://example.com", shortCode: "abc123_", isCustomAlias: false, expiresAt: null }),
       findUnique: async () => null,
-      update: async () => ({}),
+      findMany: async (args) => {
+        calls.findMany.push(args);
+        const result = filterLinks(args.where);
+        return result.slice(args.skip, args.skip + args.take);
+      },
+      count: async (args) => {
+        calls.count.push(args);
+        return filterLinks(args.where).length;
+      },
+      update: async (args) => {
+        calls.update.push(args);
+        const link = links.find((candidate) => candidate.id === args.where.id);
+
+        if (!link) {
+          throw Object.assign(new Error("Record not found"), { code: "P2025" });
+        }
+
+        Object.assign(link, args.data, { updatedAt: new Date("2026-05-19T12:00:00.000Z") });
+        return link;
+      },
+      delete: async (args) => {
+        calls.delete.push(args);
+        const index = links.findIndex((candidate) => candidate.id === args.where.id);
+
+        if (index === -1) {
+          throw Object.assign(new Error("Record not found"), { code: "P2025" });
+        }
+
+        return links.splice(index, 1)[0];
+      },
     },
     clickEvent: {
       create: async () => ({}),
@@ -224,6 +305,273 @@ describe("admin session routes", () => {
       expect(prisma.sessionTokenHash).toBeNull();
       expect(response.headers["set-cookie"]).toEqual(expect.stringContaining("admin_session="));
       expect(response.headers["set-cookie"]).toEqual(expect.stringContaining("Max-Age=0"));
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe("admin link management routes", () => {
+  it("requires an authenticated admin session to list links", async () => {
+    const app = buildServer({ ...serverDefaults, prisma: createDbStub() });
+
+    try {
+      const response = await app.inject({ method: "GET", url: "/api/admin/links" });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json()).toEqual({ code: "UNAUTHENTICATED", message: "Admin session is required." });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("lists links with search, active filter, and pagination", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/links?q=docs&status=active&page=2&pageSize=1",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        links: [],
+        pagination: { page: 2, pageSize: 1, totalItems: 1, totalPages: 1 },
+      });
+      expect(prisma.calls.findMany).toEqual([
+        {
+          where: {
+            isActive: true,
+            OR: [{ shortCode: { contains: "docs", mode: "insensitive" } }, { originalUrl: { contains: "docs", mode: "insensitive" } }],
+          },
+          orderBy: { createdAt: "desc" },
+          skip: 1,
+          take: 1,
+        },
+      ]);
+      expect(prisma.calls.count).toEqual([
+        {
+          where: {
+            isActive: true,
+            OR: [{ shortCode: { contains: "docs", mode: "insensitive" } }, { originalUrl: { contains: "docs", mode: "insensitive" } }],
+          },
+        },
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("updates a link original URL, active status, and expiration", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/links/link_1",
+        headers: { cookie: `admin_session=${token}` },
+        payload: { originalUrl: "https://updated.example.com", isActive: false, expiresAt: null },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        link: {
+          id: "link_1",
+          originalUrl: "https://updated.example.com/",
+          isActive: false,
+          expiresAt: null,
+        },
+      });
+      expect(prisma.calls.update).toEqual([
+        {
+          where: { id: "link_1" },
+          data: { originalUrl: "https://updated.example.com/", isActive: false, expiresAt: null },
+        },
+      ]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("rejects invalid link update input", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/links/link_1",
+        headers: { cookie: `admin_session=${token}` },
+        payload: { originalUrl: "ftp://example.com" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ code: "VALIDATION_ERROR", message: "Invalid admin link request." });
+      expect(prisma.calls.update).toEqual([]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("rejects primitive link update bodies", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/links/link_1",
+        headers: { cookie: `admin_session=${token}`, "content-type": "application/json" },
+        payload: JSON.stringify("not-an-object"),
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ code: "VALIDATION_ERROR", message: "Invalid admin link request." });
+      expect(prisma.calls.update).toEqual([]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("rejects blocked destinations in link updates", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/links/link_1",
+        headers: { cookie: `admin_session=${token}` },
+        payload: { originalUrl: "http://localhost:3000/private" },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ code: "VALIDATION_ERROR", message: "Invalid admin link request." });
+      expect(prisma.calls.update).toEqual([]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("returns not found when updating a missing link", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "PATCH",
+        url: "/api/admin/links/missing",
+        headers: { cookie: `admin_session=${token}` },
+        payload: { isActive: true },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json()).toEqual({ code: "NOT_FOUND", message: "Link not found." });
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("deactivates a link", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/links/link_1/deactivate",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ link: { id: "link_1", isActive: false } });
+      expect(prisma.calls.update).toEqual([{ where: { id: "link_1" }, data: { isActive: false } }]);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("deletes a link", async () => {
+    const prisma = createDbStub({ passwordHash: await hash("correct-password") });
+    const app = buildServer({ ...serverDefaults, prisma });
+    const token = "browser-token";
+    await prisma.adminSession.create({
+      data: {
+        adminUserId: "admin_1",
+        sessionTokenHash: hashSessionToken(token, serverDefaults.sessionSecret),
+        expiresAt: new Date("2999-01-01T00:00:00.000Z"),
+      },
+    });
+
+    try {
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/admin/links/link_1",
+        headers: { cookie: `admin_session=${token}` },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(prisma.calls.delete).toEqual([{ where: { id: "link_1" } }]);
     } finally {
       await app.close();
     }
