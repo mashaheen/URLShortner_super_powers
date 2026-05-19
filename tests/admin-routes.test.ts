@@ -115,18 +115,20 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
         calls.groupBy.push(args);
 
         if (args.by[0] === "referrerHost") {
-          return [
+          const rows = [
             { referrerHost: "zeta.example", _count: { _all: 2 } },
             { referrerHost: "alpha.example", _count: { _all: 2 } },
             { referrerHost: null, _count: { _all: 1 } },
           ];
+          return typeof args.take === "number" ? rows.slice(0, args.take) : rows;
         }
 
-        return [
+        const rows = [
           { deviceType: "mobile", _count: { _all: 1 } },
           { deviceType: "desktop", _count: { _all: 2 } },
           { deviceType: "bot", _count: { _all: 2 } },
         ];
+        return typeof args.take === "number" ? rows.slice(0, args.take) : rows;
       },
     },
     adminUser: {
@@ -693,7 +695,7 @@ describe("admin analytics routes", () => {
         referrers: [{ referrer: "alpha.example", clicks: 2 }, { referrer: "zeta.example", clicks: 2 }],
       });
       expect(prisma.calls.groupBy).toEqual([
-        { by: ["referrerHost"], _count: { _all: true }, orderBy: { _count: { referrerHost: "desc" } } },
+        { by: ["referrerHost"], _count: { _all: true }, orderBy: [{ _count: { referrerHost: "desc" } }, { referrerHost: "asc" }], take: 2 },
       ]);
     } finally {
       await app.close();
@@ -713,7 +715,7 @@ describe("admin analytics routes", () => {
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({ devices: [{ deviceType: "bot", clicks: 2 }, { deviceType: "desktop", clicks: 2 }, { deviceType: "mobile", clicks: 1 }] });
       expect(prisma.calls.groupBy).toEqual([
-        { by: ["deviceType"], _count: { _all: true }, orderBy: { _count: { deviceType: "desc" } } },
+        { by: ["deviceType"], _count: { _all: true }, orderBy: [{ _count: { deviceType: "desc" } }, { deviceType: "asc" }], take: 25 },
       ]);
     } finally {
       await app.close();

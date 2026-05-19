@@ -31,8 +31,8 @@ type ClickEventWhere = {
 };
 
 type ClickEventGroupByArgs =
-  | { by: ["referrerHost"]; _count: { _all: true }; orderBy?: { _count: { referrerHost: "desc" } } }
-  | { by: ["deviceType"]; _count: { _all: true }; orderBy?: { _count: { deviceType: "desc" } } };
+  | { by: ["referrerHost"]; _count: { _all: true }; orderBy?: [{ _count: { referrerHost: "desc" } }, { referrerHost: "asc" }]; take?: number }
+  | { by: ["deviceType"]; _count: { _all: true }; orderBy?: [{ _count: { deviceType: "desc" } }, { deviceType: "asc" }]; take?: number };
 
 type ClickEventGroupByResult =
   | { referrerHost: string | null; _count: { _all: number } }

@@ -301,6 +301,7 @@ function requireClickEventGroupBy(db: FastifyRequest["server"]["prisma"]) {
     by: ["referrerHost"] | ["deviceType"];
     _count: { _all: true };
     orderBy?: unknown;
+    take?: number;
   }) => Promise<Array<{ referrerHost?: string | null; deviceType?: string | null; _count: { _all: number } }>>;
 }
 
@@ -435,7 +436,8 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     const rows = await requireClickEventGroupBy(app.prisma)({
       by: ["referrerHost"],
       _count: { _all: true },
-      orderBy: { _count: { referrerHost: "desc" } },
+      orderBy: [{ _count: { referrerHost: "desc" } }, { referrerHost: "asc" }],
+      take: parseAnalyticsLimit(request.query.limit),
     });
 
     const referrers = rows.map((row) => {
@@ -444,7 +446,7 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     });
 
     return {
-      referrers: sortAnalyticsRows(referrers, (row) => row.referrer).slice(0, parseAnalyticsLimit(request.query.limit)),
+      referrers: sortAnalyticsRows(referrers, (row) => row.referrer),
     };
   });
 
@@ -456,7 +458,8 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     const rows = await requireClickEventGroupBy(app.prisma)({
       by: ["deviceType"],
       _count: { _all: true },
-      orderBy: { _count: { deviceType: "desc" } },
+      orderBy: [{ _count: { deviceType: "desc" } }, { deviceType: "asc" }],
+      take: 25,
     });
 
     const devices = rows.map((row) => {
