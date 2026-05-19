@@ -168,7 +168,7 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
     $queryRaw: async (query, ...values) => {
       calls.queryRaw.push({ query: [...query], values });
       if (query.some((part) => part.includes("referrer_host"))) {
-        return [{ referrer: null, clicks: 5n }, { referrer: "example.com", clicks: 2 }];
+        return [{ referrer: null, clicks: 2n }, { referrer: "alpha.example", clicks: 2 }];
       }
 
       return [{ date: new Date("2026-05-18T00:00:00.000Z"), clicks: 2n }, { date: "2026-05-19", clicks: 1 }];
@@ -696,7 +696,7 @@ describe("admin analytics routes", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.json()).toEqual({
-        referrers: [{ referrer: "Direct", clicks: 5 }, { referrer: "example.com", clicks: 2 }],
+        referrers: [{ referrer: "Direct", clicks: 2 }, { referrer: "alpha.example", clicks: 2 }],
       });
       expect(prisma.calls.groupBy).toEqual([]);
       expect(prisma.calls.queryRaw).toHaveLength(1);

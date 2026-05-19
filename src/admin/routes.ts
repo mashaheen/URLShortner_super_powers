@@ -449,7 +449,7 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
     const referrers = rows.map((row) => ({ referrer: row.referrer?.trim() || "Direct", clicks: Number(row.clicks) }));
 
     return {
-      referrers: sortAnalyticsRows(referrers, (row) => row.referrer),
+      referrers,
     };
   });
 
