@@ -42,6 +42,11 @@ type ClicksByDayRow = {
   clicks: number | bigint;
 };
 
+type ReferrerRow = {
+  referrer: string | null;
+  clicks: number | bigint;
+};
+
 type LinkParams = {
   id: string;
 };
@@ -433,17 +438,15 @@ export const adminAuthRoutes: FastifyPluginAsync<AdminAuthRoutesOptions> = async
       return reply;
     }
 
-    const rows = await requireClickEventGroupBy(app.prisma)({
-      by: ["referrerHost"],
-      _count: { _all: true },
-      orderBy: [{ _count: { referrerHost: "desc" } }, { referrerHost: "asc" }],
-      take: parseAnalyticsLimit(request.query.limit),
-    });
+    const rows = await app.prisma.$queryRaw`
+      SELECT referrer_host AS referrer, COUNT(*)::int AS clicks
+      FROM click_events
+      GROUP BY referrer_host
+      ORDER BY COUNT(*) DESC, referrer_host ASC NULLS FIRST
+      LIMIT ${parseAnalyticsLimit(request.query.limit)}
+    ` as ReferrerRow[];
 
-    const referrers = rows.map((row) => {
-      const referrerHost = "referrerHost" in row ? row.referrerHost : null;
-      return { referrer: referrerHost?.trim() || "Direct", clicks: row._count._all };
-    });
+    const referrers = rows.map((row) => ({ referrer: row.referrer?.trim() || "Direct", clicks: Number(row.clicks) }));
 
     return {
       referrers: sortAnalyticsRows(referrers, (row) => row.referrer),
