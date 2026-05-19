@@ -1,0 +1,25 @@
+{
+  "name": "url-shortener-super-powers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "prebuild": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/index.js",
+    "test": "vitest run --exclude dist/**"
+  },
+  "dependencies": {
+    "@fastify/cors": "11.1.0",
+    "@fastify/helmet": "13.0.2",
+    "fastify": "5.8.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "4.0.14"
+  }
+}
