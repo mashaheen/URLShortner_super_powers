@@ -60,6 +60,45 @@ describe("public web routes", () => {
     }
   });
 
+  it("serves the public React shell for admin deep links from the web root", async () => {
+    const webRoot = await mkdtemp(join(tmpdir(), "public-web-"));
+    const shell = "<!doctype html><div id=\"root\">React shell</div>";
+    await writeFile(join(webRoot, "index.html"), shell);
+
+    const app = buildServer({ ...serverDefaults, prisma: createDbStub(), webRoot });
+
+    try {
+      const adminResponse = await app.inject({ method: "GET", url: "/admin" });
+      const deepLinkResponse = await app.inject({ method: "GET", url: "/admin/links" });
+
+      expect(adminResponse.statusCode).toBe(200);
+      expect(adminResponse.headers["content-type"]).toContain("text/html");
+      expect(adminResponse.body).toBe(shell);
+      expect(deepLinkResponse.statusCode).toBe(200);
+      expect(deepLinkResponse.headers["content-type"]).toContain("text/html");
+      expect(deepLinkResponse.body).toBe(shell);
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("keeps admin API routes ahead of the admin web shell", async () => {
+    const webRoot = await mkdtemp(join(tmpdir(), "public-web-"));
+    await writeFile(join(webRoot, "index.html"), "<!doctype html><div id=\"root\">React shell</div>");
+
+    const app = buildServer({ ...serverDefaults, prisma: createDbStub(), webRoot });
+
+    try {
+      const response = await app.inject({ method: "GET", url: "/api/admin/session" });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.headers["content-type"]).not.toContain("text/html");
+      expect(response.body).not.toContain("React shell");
+    } finally {
+      await app.close();
+    }
+  });
+
   it("keeps API routes ahead of the public web shell", async () => {
     const webRoot = await mkdtemp(join(tmpdir(), "public-web-"));
     await mkdir(join(webRoot, "api"));

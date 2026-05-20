@@ -16,8 +16,13 @@ export const publicWebRoutes: FastifyPluginAsync<PublicWebRoutesOptions> = async
     root: options.webRoot,
     prefix: "/",
     wildcard: false,
+    index: false,
     dotfiles: "deny",
     globIgnore: ["api/**", "**/.*", "**/.*/**"],
     allowedPath: (pathName) => !pathName.startsWith("/api/"),
   });
+
+  app.get("/", async (_request, reply) => reply.sendFile("index.html"));
+  app.get("/admin", async (_request, reply) => reply.sendFile("index.html"));
+  app.get("/admin/*", async (_request, reply) => reply.sendFile("index.html"));
 };

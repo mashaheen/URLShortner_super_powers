@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { AdminApp } from "./AdminApp";
 
 type LinkResponse = {
   shortUrl?: unknown;
@@ -11,6 +12,14 @@ type ApiErrorResponse = {
 const GENERIC_ERROR = "Unable to create link. Please try again.";
 
 export function App() {
+  if (window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/")) {
+    return <AdminApp />;
+  }
+
+  return <PublicApp />;
+}
+
+function PublicApp() {
   const [url, setUrl] = useState("");
   const [alias, setAlias] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
