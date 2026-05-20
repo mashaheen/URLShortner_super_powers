@@ -14,10 +14,12 @@ type CreateLinkOptions = {
 type CreatedLink = {
   id: string;
   url: string;
+  originalUrl: string;
   shortCode: string;
   shortUrl: string;
   isCustomAlias: boolean;
   expiresAt: Date | null;
+  createdAt: Date;
 };
 
 export class LinkValidationError extends Error {
@@ -79,10 +81,12 @@ function toCreatedLink(link: LinkCreateResult, publicBaseUrl: string): CreatedLi
   return {
     id: link.id,
     url: link.originalUrl,
+    originalUrl: link.originalUrl,
     shortCode: link.shortCode,
     shortUrl: `${publicBaseUrl.replace(/\/+$/, "")}/${link.shortCode}`,
     isCustomAlias: link.isCustomAlias,
     expiresAt: link.expiresAt,
+    createdAt: link.createdAt,
   };
 }
 

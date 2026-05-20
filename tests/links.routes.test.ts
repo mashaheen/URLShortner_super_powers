@@ -49,6 +49,7 @@ describe("link routes", () => {
         shortCode: "abc123_",
         isCustomAlias: false,
         expiresAt: null,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
       })),
     });
 
@@ -63,10 +64,12 @@ describe("link routes", () => {
       expect(response.json()).toEqual({
         id: "link_1",
         url: "https://example.com",
+        originalUrl: "https://example.com",
         shortCode: "abc123_",
         shortUrl: "https://sho.rt/abc123_",
         isCustomAlias: false,
         expiresAt: null,
+        createdAt: "2026-05-20T10:00:00.000Z",
       });
     } finally {
       await app.close();

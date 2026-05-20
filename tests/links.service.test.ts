@@ -40,6 +40,7 @@ describe("link creation service", () => {
       shortCode: "abc123_",
       isCustomAlias: false,
       expiresAt: null,
+      createdAt: new Date("2026-05-20T10:00:00.000Z"),
     }));
 
     await expect(
@@ -52,10 +53,12 @@ describe("link creation service", () => {
     ).resolves.toEqual({
       id: "1",
       url: "https://example.com",
+      originalUrl: "https://example.com",
       shortCode: "abc123_",
       shortUrl: "https://sho.rt/abc123_",
       isCustomAlias: false,
       expiresAt: null,
+      createdAt: new Date("2026-05-20T10:00:00.000Z"),
     });
   });
 
@@ -69,6 +72,7 @@ describe("link creation service", () => {
         shortCode: args.data.shortCode,
         isCustomAlias: args.data.isCustomAlias,
         expiresAt: args.data.expiresAt,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
       };
     });
 
@@ -98,6 +102,7 @@ describe("link creation service", () => {
         shortCode: args.data.shortCode,
         isCustomAlias: args.data.isCustomAlias,
         expiresAt: args.data.expiresAt,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
       };
     });
 

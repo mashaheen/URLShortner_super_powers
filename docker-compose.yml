@@ -1,4 +1,25 @@
 services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://urlshortener:urlshortener@postgres:5432/urlshortener
+      PUBLIC_BASE_URL: http://localhost:3000
+      SESSION_SECRET: compose-session-secret-change-me
+      IP_HASH_SECRET: compose-ip-hash-secret-change-me
+      COOKIE_SECURE: "false"
+      PORT: "3000"
+      HOST: 0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   postgres:
     image: postgres:17-alpine
     environment:

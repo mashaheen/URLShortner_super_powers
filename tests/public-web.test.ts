@@ -14,6 +14,7 @@ function createDbStub(): DatabaseClient {
         shortCode: "abc123_",
         isCustomAlias: false,
         expiresAt: null,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
       }),
       findUnique: async () => null,
       update: async () => ({}),

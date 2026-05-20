@@ -8,6 +8,7 @@ export type LinkCreateResult = {
   shortCode: string;
   isCustomAlias: boolean;
   expiresAt: Date | null;
+  createdAt: Date;
 };
 
 export type LinkAdminResult = LinkCreateResult & {

@@ -68,7 +68,14 @@ function createDbStub(options: { passwordHash?: string } = {}): DatabaseClient &
     },
     calls,
     link: {
-      create: async () => ({ id: "1", originalUrl: "https://example.com", shortCode: "abc123_", isCustomAlias: false, expiresAt: null }),
+      create: async () => ({
+        id: "1",
+        originalUrl: "https://example.com",
+        shortCode: "abc123_",
+        isCustomAlias: false,
+        expiresAt: null,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
+      }),
       findUnique: async () => null,
       findMany: async (args) => {
         calls.findMany.push(args);

@@ -4,7 +4,14 @@ import { buildServer } from "../src/server.js";
 function createPrismaStub(queryRaw: () => Promise<unknown>) {
   return {
     link: {
-      create: async () => ({ id: "1", originalUrl: "https://example.com", shortCode: "abc123_", isCustomAlias: false, expiresAt: null }),
+      create: async () => ({
+        id: "1",
+        originalUrl: "https://example.com",
+        shortCode: "abc123_",
+        isCustomAlias: false,
+        expiresAt: null,
+        createdAt: new Date("2026-05-20T10:00:00.000Z"),
+      }),
       findUnique: async () => null,
       update: async () => ({}),
     },
@@ -59,6 +66,49 @@ describe("health endpoint", () => {
 
       expect(response.statusCode).toBe(503);
       expect(response.json()).toEqual({ status: "error", database: "unavailable" });
+    } finally {
+      await app.close();
+    }
+  });
+});
+
+describe("OpenAPI docs", () => {
+  it("exposes the OpenAPI document", async () => {
+    const app = buildServer({
+      logger: false,
+      prisma: createPrismaStub(async () => [{ "?column?": 1 }]),
+      ipHashSecret: "test-secret",
+      sessionSecret: "test-session-secret",
+    });
+
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs/json" });
+      const document = response.json();
+
+      expect(response.statusCode).toBe(200);
+      expect(document).toMatchObject({
+        openapi: expect.stringMatching(/^3\./),
+        info: { title: "URL Shortener API", version: "1.0.0" },
+      });
+      expect(document.paths["/api/links"].post.summary).toBe("Create short link");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("serves the Swagger UI", async () => {
+    const app = buildServer({
+      logger: false,
+      prisma: createPrismaStub(async () => [{ "?column?": 1 }]),
+      ipHashSecret: "test-secret",
+      sessionSecret: "test-session-secret",
+    });
+
+    try {
+      const response = await app.inject({ method: "GET", url: "/docs" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-type"]).toContain("text/html");
     } finally {
       await app.close();
     }
