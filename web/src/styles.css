@@ -19,7 +19,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -104,7 +105,8 @@ h1 {
   font-weight: 500;
 }
 
-input {
+input,
+select {
   width: 100%;
   border: 1px solid #d7deea;
   border-radius: 1rem;
@@ -118,13 +120,15 @@ input {
 }
 
 input:focus-visible,
+select:focus-visible,
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid rgba(31, 94, 255, 0.35);
   outline-offset: 3px;
 }
 
-input:focus {
+input:focus,
+select:focus {
   border-color: #1f5eff;
   box-shadow: 0 0 0 4px rgba(31, 94, 255, 0.12);
 }
@@ -383,6 +387,155 @@ button:disabled {
   padding: clamp(1rem, 3vw, 1.4rem);
 }
 
+.admin-loading-note {
+  border: 1px solid rgba(31, 94, 255, 0.16);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  color: #1f5eff;
+  background: #eaf0ff;
+  font-weight: 800;
+}
+
+.admin-chart-grid {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(2, minmax(0, 0.9fr));
+  gap: 1rem;
+}
+
+.admin-chart-panel {
+  min-height: 280px;
+}
+
+.admin-bar-list {
+  display: grid;
+  gap: 1rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-bar-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-bar-row span {
+  color: #334155;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.admin-bar-row strong {
+  flex: 0 0 auto;
+  color: #1f5eff;
+  font-size: 0.9rem;
+}
+
+.admin-bar-track {
+  height: 0.75rem;
+  margin-top: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e6ecf7;
+}
+
+.admin-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1f5eff, #7638ff);
+}
+
+.admin-table-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) auto;
+  align-items: end;
+  gap: 1rem;
+  margin-top: 1.1rem;
+}
+
+.admin-table-wrap {
+  width: 100%;
+  margin-top: 1rem;
+  overflow-x: auto;
+}
+
+.admin-links-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+
+.admin-links-table th,
+.admin-links-table td {
+  border-bottom: 1px solid #e4eaf3;
+  padding: 0.9rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-links-table th {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.admin-links-table td {
+  color: #253047;
+  font-weight: 700;
+}
+
+.admin-links-table a {
+  font-weight: 700;
+}
+
+.admin-status-pill {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.admin-status-pill.is-active {
+  color: #126338;
+  background: #dcfce7;
+}
+
+.admin-status-pill.is-inactive {
+  color: #8a1f11;
+  background: #fff1ee;
+}
+
+.admin-copy-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem;
+  color: #1f5eff;
+  background: #eaf0ff;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.admin-pagination div {
+  display: flex;
+  gap: 0.6rem;
+}
+
 .admin-link-list {
   display: grid;
   gap: 0.7rem;
@@ -446,6 +599,11 @@ button:disabled {
   .admin-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .admin-chart-grid,
+  .admin-table-controls {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 560px) {
@@ -463,12 +621,55 @@ button:disabled {
 
   .admin-topbar,
   .admin-panel-header,
-  .admin-link-list li {
+  .admin-link-list li,
+  .admin-pagination,
+  .admin-pagination div {
     align-items: stretch;
     flex-direction: column;
   }
 
   .admin-overview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-links-table {
+    min-width: 0;
+  }
+
+  .admin-links-table thead {
+    display: none;
+  }
+
+  .admin-links-table,
+  .admin-links-table tbody,
+  .admin-links-table tr,
+  .admin-links-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-links-table tr {
+    margin-top: 0.85rem;
+    border: 1px solid #e4eaf3;
+    border-radius: 1rem;
+    padding: 0.35rem 0;
+    background: #ffffff;
+  }
+
+  .admin-links-table td {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.75rem;
+    border-bottom: 0;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .admin-links-table td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 }
