@@ -2,6 +2,8 @@ import { fileURLToPath } from "node:url";
 import { readCookieSecure, readIpHashSecret, readSessionSecret } from "./config.js";
 import { buildServer } from "./server.js";
 
+process.loadEnvFile?.();
+
 const webRoot = fileURLToPath(new URL("./web", import.meta.url));
 
 const app = buildServer({

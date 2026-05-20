@@ -124,7 +124,46 @@ Keep both terminals running during development:
 - Terminal 1: `npm run dev`
 - Terminal 2: `npm run dev:web`
 
-### Step 7: Verify the Project
+### Step 7: Access the Admin Page Locally
+
+Open the admin page in your browser:
+
+```text
+http://localhost:5173/admin
+```
+
+The admin page uses the backend admin API through the Vite `/api` proxy. Keep both the backend and frontend dev servers running.
+
+To sign in, the database must contain an admin user in the `admin_users` table. There is no seed script in this project, so create a local admin user manually.
+
+Generate an Argon2 password hash:
+
+```powershell
+node -e "import('argon2').then(async ({ hash }) => console.log(await hash('ChangeMe123!')))"
+```
+
+Insert the admin user into PostgreSQL. Replace the hash value with the output from the previous command:
+
+```sql
+INSERT INTO admin_users (email, password_hash)
+VALUES ('admin@example.com', '<argon2id$v=19$m=65536,t=3,p=4$mthC7u0nd+Ihw3zabGpJgw$dX7ikK+7KdM2Jra2QRpcde+96FIz4B7pB9AsWKWFlTw>')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+```
+
+If you use `psql`, you can run the insert against the local database like this:
+
+```bash
+psql "postgresql://urlshortener:urlshortener@localhost:5432/urlshortener"
+```
+
+Then sign in at `http://localhost:5173/admin` with:
+
+- Email: `admin@example.com`
+- Password: `ChangeMe123!`
+
+Use a different password for any shared or deployed environment.
+
+### Step 8: Verify the Project
 
 Run TypeScript checks:
 
@@ -150,7 +189,7 @@ Start the built production server locally:
 npm start
 ```
 
-### Step 8: Optional Database Tools
+### Step 9: Optional Database Tools
 
 Open Prisma Studio to inspect and edit database records:
 

@@ -10,6 +10,11 @@ export default defineConfig({
     outDir: "../dist/web",
     emptyOutDir: true,
   },
+  server: {
+    proxy: {
+      "/api": "http://localhost:3000",
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,
