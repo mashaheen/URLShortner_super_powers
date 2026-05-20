@@ -13,7 +13,7 @@
     "build:web": "vite build --config web/vite.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
     "start": "node dist/index.js",
-    "test": "vitest run --exclude dist/**",
+    "test": "vitest run --exclude dist/** --exclude .worktrees/**",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"
