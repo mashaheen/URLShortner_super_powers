@@ -4,6 +4,7 @@ import { adminAuthRoutes } from "./admin/routes.js";
 import { readCookieSecure } from "./config.js";
 import { database, type DatabaseClient } from "./db.js";
 import { linkRoutes } from "./links/routes.js";
+import { publicWebRoutes } from "./public-web.js";
 import { redirectRoutes } from "./redirect-routes.js";
 
 type ServerOptions = {
@@ -13,6 +14,7 @@ type ServerOptions = {
   ipHashSecret: string;
   sessionSecret: string;
   cookieSecure?: boolean;
+  webRoot?: string;
 };
 
 export function buildServer(options: ServerOptions) {
@@ -38,6 +40,7 @@ export function buildServer(options: ServerOptions) {
     }
   });
 
+  app.register(publicWebRoutes, { webRoot: options.webRoot });
   app.register(redirectRoutes, { ipHashSecret: options.ipHashSecret });
 
   return app;

@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:web": "vite --config web/vite.config.ts --host 0.0.0.0",
     "postinstall": "prisma generate",
     "prebuild": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\"",
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "tsc -p tsconfig.build.json",
+    "build:web": "vite build --config web/vite.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "test": "vitest run --exclude dist/**",
     "db:generate": "prisma generate",
@@ -18,16 +21,27 @@
   "dependencies": {
     "@fastify/cors": "11.1.0",
     "@fastify/helmet": "13.0.2",
+    "@fastify/static": "^9.1.3",
     "@prisma/client": "^7.8.0",
     "argon2": "^0.44.0",
     "fastify": "5.8.5",
     "fastify-plugin": "^5.1.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "24.10.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.2.0",
+    "jsdom": "^29.1.1",
     "prisma": "^7.8.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "tsx": "4.20.6",
     "typescript": "5.9.3",
+    "vite": "^7.3.3",
     "vitest": "4.0.14"
   }
 }

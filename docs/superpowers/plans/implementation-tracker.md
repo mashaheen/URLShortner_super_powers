@@ -11,12 +11,12 @@ Design spec: `docs/superpowers/specs/2026-05-18-url-shortener-design.md`
 - [x] M2A: Admin authentication and sessions
 - [x] M2B: Admin link management API
 - [x] M2C: Admin analytics API
-- [ ] M3A: Public React form
+- [x] M3A: Public React form
 - [ ] M3B: Admin dashboard UI shell
 - [ ] M3C: Dashboard charts and link table
 - [ ] M4A: OpenAPI docs, Docker production image, final verification
 
 ## Current Status
 
-- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m2c-admin-analytics-api.md`
+- Current plan: `docs/superpowers/plans/2026-05-19-url-shortener-m3a-public-react-form.md`
 - Last updated: 2026-05-19
